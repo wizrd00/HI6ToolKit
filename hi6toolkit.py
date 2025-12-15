@@ -30,7 +30,7 @@ class Constant :
         f"[System] : [{sys.platform.upper()}, {time.ctime()}]",
         f"[Hostname] : [{socket.gethostname()}, PID {os.getpid()}]",
         f"[Python] : [{sys.implementation.name.title()} {sys.version_info[0]}.{sys.version_info[1]}]",
-        f"[GitHub] : [github.com/HI6Cypher]"
+        f"[GitHub] : [github.com/wizrd00]"
         )
 
     def SOURCE() -> str :
@@ -326,12 +326,11 @@ class Sniff :
             data.insert(0, 10)
             data.insert(0, 9)
             data.insert(0, 9)
-        return bytes(data).decode()
+        return bytes(data).decode() + "\n\n"
 
-    @staticmethod
-    async def parse_raw_payload(data : memoryview | bytes) -> str :
+    async def parse_raw_payload(self, data : memoryview | bytes) -> str :
         parsed_payload = str()
-        if data : parsed_payload += "Raw Data :" + self.indent_data(data)
+        if data : parsed_payload += "Raw Data :" + await self.indent_data(data)
         return parsed_payload
 
     async def parse_eth_header_verboss(self, data : memoryview | bytes) -> tuple[str, str | int] :
@@ -345,7 +344,7 @@ class Sniff :
         parsed_header = str()
         dst, src, typ = await self.eth_header(data)
         parsed_header += f"Ethernet : Src:{src}|Dst:{dst}|Type:{typ}"
-        return (parsed_header, dst, src, typ)
+        return (parsed_header, typ)
 
     async def parse_ipv4_header_verboss(self, data : memoryview | bytes) -> tuple[str, int, int, int, int, int, int, int, int, str | int, int, str, str] :
         parsed_header = str()
@@ -563,19 +562,21 @@ class Sniff :
                 unknown_header = f"{eth_type} : unimplemented network layer protocol"
                 return (unknown_header, None, None, data)
 
-    async def parse_transport_layer(self, data : memoryview | bytes, net_proto : str | int, net_header : tuple) -> tuple[str | None, int | None, int | None, tuple | None, memoryview | bytes] :
-        if not net_proto : return (str(), None, None, data)
+    async def parse_transport_layer(self, data : memoryview | bytes, net_proto : str | int) -> tuple[str | None, int | None, int | None, tuple | None, memoryview | bytes] :
+        if not net_proto : return (str(), None, None, None, data)
         header = data
         match net_proto :
             case "TCP" :
                 tcp_header = await self.parse_tcp_header_verboss(header) if self.verboss else await self.parse_tcp_header(header)
                 parsed_tcp_header = tcp_header[0]
                 src_p, dst_p = tcp_header[1], tcp_header[2]
+                oft = tcp_header[5]
                 return (parsed_tcp_header, src_p, dst_p, tcp_header, data[oft:])
             case "UDP" :
                 udp_header = await self.parse_udp_header_verboss(header) if self.verboss else await self.parse_udp_header(header)
                 parsed_udp_header = udp_header[0]
                 src_p, dst_p = udp_header[1], udp_header[2]
+                tln = udp_header[3]
                 return (parsed_udp_header, src_p, dst_p, udp_header, data[tln:])
             case "ICMPv4" :
                 icmpv4_header = await self.parse_icmpv4_header_verboss(header) if self.verboss else await self.parse_icmpv4_header(header)
@@ -601,9 +602,9 @@ class Sniff :
         eth_data = raw_data[:14]
         network_data = raw_data[14:]
         parsed_eth_header, typ = await self.parse_eth_header_verboss(eth_data) if self.verboss else await self.parse_eth_header(eth_data)
-        parsed_network_header, prt, transport_data = await self.parse_network_layer(network_data)
-        parsed_transport_header, src_p, dst_p, application_data = await self.parse_transport_layer(transport_data)
-        parsed_raw_data = await self.parse_raw_payload(data)
+        parsed_network_header, prt, _, transport_data = await self.parse_network_layer(network_data, typ)
+        parsed_transport_header, src_p, dst_p, transport_header, application_data = await self.parse_transport_layer(transport_data, prt)
+        parsed_raw_data = await self.parse_raw_payload(application_data)
         parsed_headers += spec_header
         parsed_headers += saperator
         parsed_headers += parsed_eth_header
@@ -611,8 +612,6 @@ class Sniff :
         parsed_headers += parsed_network_header
         parsed_headers += saperator
         parsed_headers += parsed_transport_header
-        parsed_headers += saperator
-        parsed_headers += parsed_application_header
         parsed_headers += saperator
         parsed_headers += parsed_raw_data
         return parsed_headers
@@ -1279,6 +1278,7 @@ class DoS_Arp :
             while (self.count != self.num) :
                 payload = self.prepare()
                 flood.sendto(payload, addr)
+                print(self.count, end = "\r")
                 self.count += 1
                 if (self.num != -1) : self.progress_bar(self.load_bar, self.count, self.num)
                 time.sleep(self.wait)
@@ -1432,13 +1432,14 @@ class DoS_SYN :
 
 
 class HTTP_Request :
-    def __init__(self, host : str, port : int, method : str, header : str, end : str, https : bool) -> None :
+    def __init__(self, host : str, port : int, method : str, header : str, end : str, https : bool, quiet : bool) -> None :
         self.host = host
         self.port = int(port)
         self.method = method if (method in ("GET", "HEAD")) else "GET"
         self.header = header
         self.end = end if end else "/"
         self.https = bool(https)
+        self.quiet = bool(quiet)
         self.request_header = str()
         self.response = bytes()
         self.response_header = str()
@@ -1489,7 +1490,7 @@ class HTTP_Request :
                     header, data = self.parse_response_header(raw_data)
                     if not Constant.MODULE :
                         print(header, end = "\n\n")
-                        print(data)
+                        if (not self.quiet) : print(data)
                     if self.https : http.close()
                     break
                 else :
@@ -1729,6 +1730,7 @@ if not Constant.MODULE :
         http_tool.add_argument("-c", "--custom", type = str, help = "sets custome header for HTTP_Request", default = str())
         http_tool.add_argument("-e", "--endpoint", type = str, help = "sets endpoint", default = "/")
         http_tool.add_argument("-s", "--secure", action = "store_true", help = "enables secure socket(ssl)", default = False)
+        http_tool.add_argument("-q", "--quiet", action = "store_true", help = "enables quiet mode", default = False)
         http_tool.set_defaults(func = HTTP_Request_args)
         tunnel_tool = subparser.add_parser("tunnel", help = "execute http tunnel listener")
         tunnel_tool.add_argument("-x", "--host", type = str, help = "sets host", default = "0.0.0.0")
@@ -1860,7 +1862,8 @@ if not Constant.MODULE :
             args.method,
             args.custom,
             args.endpoint,
-            args.secure
+            args.secure,
+	    args.quiet
             )
         client.request()
         return

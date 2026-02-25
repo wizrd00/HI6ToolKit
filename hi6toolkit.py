@@ -760,6 +760,8 @@ class Sniff :
         return file
 
     async def sniff(self) -> None :
+        if not Constant.ISOS :
+            return
         await self.check_interface()
         await self.check_eth_p_all()
         if self.tmp :
@@ -875,6 +877,8 @@ class Scan :
             return (False, None)
 
     async def scan(self, port : int) -> tuple[bool, bool] :
+        if not Constant.ISOS :
+            return
         return await self.__scan(port)
 
     async def __scan(self, port : int) -> tuple[bool, bool] :
@@ -1099,6 +1103,8 @@ class Trace :
         return
 
     def trace(self) -> None :
+        if not Constant.ISOS :
+            return
         while (not self.stop) and (not self.check_overshoot_error()) :
             self.__trace()
             self.__log()
@@ -1255,6 +1261,8 @@ class DoS_Arp :
         return eth + arp
 
     def flood(self) -> None :
+        if not Constant.ISOS :
+            return
         self.check_eth_p_all()
         self.__flood()
         return
@@ -1403,6 +1411,8 @@ class DoS_SYN :
         return payload
 
     def flood(self) -> None :
+        if not Constant.ISOS :
+            return
         self.__flood()
         return
 
@@ -1455,12 +1465,13 @@ class HTTP_Request :
 
     def prepare(self) -> str :
         if self.header : return self.header
+        connection = "keep-alive" if self.flood else "close"
         payload = [
             f"{self.method} {self.end} HTTP/1.1",
             f"Host: {self.host}",
             "User-Agent: HI6ToolKit",
             "Accept: */*",
-            "Connection: close",
+            "Connection: " + connection,
             "\r\n"
             ]
         return "\r\n".join(payload)
@@ -1490,6 +1501,8 @@ class HTTP_Request :
             http.connect((self.host, self.port))
             http.send(self.request_header.encode())
             raw_data = bytes()
+            if self.flood :
+                http.shutdown(socket.SHUT_RDWR)
             while not self.flood :
                 response = http.recv(1024)
                 if not response :

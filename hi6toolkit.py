@@ -21,7 +21,7 @@ class Constant :
     ISOS : bool = any([os in sys.platform for os in ("linux", "bsd", "darwin")])
     IFACES : list = [iface[-1] for iface in socket.if_nameindex()] if ISOS else []
     COUNTER : int = ctypes.c_uint64
-    SUP_COLOR : bool = True if (os.getenv("COLORTERM") in ("truecolor", "24bit", "color24")) and (os.getenv("NOCOLOR") in (None, 0, "false", "no")) else False
+    SUP_COLOR : bool = True if (os.getenv("COLORTERM") in ("truecolor", "24bit", "color24")) or (os.getenv("NOCOLOR") in (None, 0, "false", "no")) else False
     SLASH : str = chr(47)
     ESCAPE : str = chr(27)
     TOOLS : dict = dict()

@@ -1,5 +1,11 @@
-# Under Development...
 # HI6ToolKit
+![Python](https://img.shields.io/badge/Python-3.x-blue?logo=python)
+![Linux](https://img.shields.io/badge/Linux-Supported-black?logo=linux)
+![AsyncIO](https://img.shields.io/badge/AsyncIO-Enabled-green)
+![Raw Socket](https://img.shields.io/badge/Raw%20Sockets-Low%20Level-red)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+![License](https://img.shields.io/badge/License-MIT-green)
+
 hi6toolkit.py is a script which include several useful network tools  
 I've developed it for personal use, but it can be used everywhere by anybody  
 most advanced tools of hi6toolkit is it's sniffer
